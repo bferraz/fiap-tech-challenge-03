@@ -1,0 +1,5 @@
+# Ignore Tech Challenge documentation
+Tech_Challenge.md
+
+# Ignore compressed files
+*.gz
