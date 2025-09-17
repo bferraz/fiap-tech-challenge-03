@@ -3,3 +3,6 @@ Tech_Challenge.md
 
 # Ignore compressed files
 *.gz
+
+tinyllama_amazon_final/
+tinyllama_amazon_finetuned/
