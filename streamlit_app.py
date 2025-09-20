@@ -2,7 +2,7 @@ import os
 import re
 import streamlit as st
 import torch
-from typing import Tuple
+from typing import Tuple, List
 
 # Dependências de modelo (Unsloth é opcional)
 try:
@@ -27,6 +27,36 @@ st.markdown(
     """
 )
 
+PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
+
+def _looks_like_merged_model(dir_path: str) -> bool:
+    # Critérios simples: tem config.json e algum peso de modelo
+    if not os.path.isdir(dir_path):
+        return False
+    files = set(os.listdir(dir_path))
+    has_config = 'config.json' in files
+    has_weights = any(f in files for f in ['model.safetensors', 'pytorch_model.bin'])
+    return has_config and has_weights
+
+def _looks_like_adapter(dir_path: str) -> bool:
+    if not os.path.isdir(dir_path):
+        return False
+    files = set(os.listdir(dir_path))
+    # Padrão PEFT
+    return ('adapter_config.json' in files) or ('adapter_model.safetensors' in files)
+
+def _discover_dirs(root: str, predicate) -> List[str]:
+    found = []
+    # verifica o próprio root e 1 nível de subpastas
+    if predicate(root):
+        found.append(root)
+    for name in os.listdir(root):
+        path = os.path.join(root, name)
+        if os.path.isdir(path) and predicate(path):
+            found.append(path)
+    # ordenar por nome para estabilidade
+    return sorted(found)
+
 # Sidebar configs
 with st.sidebar:
     st.header("Configurações do Modelo")
@@ -35,8 +65,21 @@ with st.sidebar:
         ["Base (HF Hub)", "Fine-tuned (mesclado)", "Fine-tuned (adapter)"]
     )
     base_model_name = st.text_input("HF model id (base)", value="TinyLlama/TinyLlama-1.1B-Chat-v1.0")
-    merged_model_path = st.text_input("Caminho modelo mesclado", value=os.getenv("OSS_MERGED_DIR", "./tinyllama_amazon_final"))
-    adapter_path = st.text_input("Caminho do adapter LoRA", value=os.getenv("OSS_OUTPUT_DIR", "./tinyllama_amazon_finetuned"))
+    # Descobrir diretórios na raiz do projeto
+    merged_candidates = _discover_dirs(PROJECT_ROOT, _looks_like_merged_model)
+    adapter_candidates = _discover_dirs(PROJECT_ROOT, _looks_like_adapter)
+
+    st.caption(f"Raiz do projeto: {PROJECT_ROOT}")
+
+    if merged_candidates:
+        merged_model_path = st.selectbox("Modelo mesclado (auto-detectado)", merged_candidates, index=0)
+    else:
+        merged_model_path = st.text_input("Caminho modelo mesclado", value=os.path.join(PROJECT_ROOT, "tinyllama_amazon_final"))
+
+    if adapter_candidates:
+        adapter_path = st.selectbox("Adapter LoRA (auto-detectado)", adapter_candidates, index=0)
+    else:
+        adapter_path = st.text_input("Caminho do adapter LoRA", value=os.path.join(PROJECT_ROOT, "tinyllama_amazon_finetuned"))
 
     max_seq_len = st.number_input("Max seq len", min_value=256, max_value=4096, value=1024, step=128)
 
@@ -93,6 +136,9 @@ def load_model(model_mode: str, base_model_name: str, merged_model_path: str, ad
 
     # Mesclado
     if model_mode == "Fine-tuned (mesclado)":
+        if not os.path.isdir(merged_model_path):
+            st.error(f"Diretório de modelo mesclado não encontrado: {merged_model_path}")
+            st.stop()
         if FastLanguageModel is not None:
             return _unsloth_load(merged_model_path)
         else:
@@ -102,6 +148,9 @@ def load_model(model_mode: str, base_model_name: str, merged_model_path: str, ad
     # Adapter
     if PeftModel is None:
         st.error("peft não instalado. Instale peft para carregar adapters, ou use o modelo mesclado.")
+        st.stop()
+    if not os.path.isdir(adapter_path):
+        st.error(f"Diretório de adapter não encontrado: {adapter_path}")
         st.stop()
     if FastLanguageModel is not None:
         base_model, tokenizer = _unsloth_load(base_model_name)
