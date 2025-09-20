@@ -1,5 +1,8 @@
 import os
 import re
+import json
+import shutil
+import hashlib
 import streamlit as st
 import torch
 from typing import Tuple, List
@@ -56,6 +59,67 @@ def _discover_dirs(root: str, predicate) -> List[str]:
             found.append(path)
     # ordenar por nome para estabilidade
     return sorted(found)
+
+def _sanitize_adapter_dir(src_dir: str) -> str:
+    """
+    Some adapters trained with Unsloth/PEFT include extra keys (e.g., 'corda_config')
+    that older peft versions don't accept. This creates a sanitized copy with unknown
+    keys removed from adapter_config.json.
+    """
+    cfg_path = os.path.join(src_dir, 'adapter_config.json')
+    if not os.path.exists(cfg_path):
+        return src_dir
+    try:
+        with open(cfg_path, 'r', encoding='utf-8') as f:
+            cfg = json.load(f)
+    except Exception:
+        return src_dir
+
+    # Determine allowed keys from the installed peft's LoraConfig signature
+    allowed = None
+    try:
+        from peft import LoraConfig
+        import inspect
+        sig = inspect.signature(LoraConfig.__init__)
+        allowed = set([p.name for p in sig.parameters.values() if p.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD])
+        # Remove 'self' if present
+        allowed.discard('self')
+    except Exception:
+        # Fallback broad allowlist across common peft versions
+        allowed = {
+            'r', 'target_modules', 'lora_alpha', 'lora_dropout', 'bias', 'task_type',
+            'inference_mode', 'use_rslora', 'peft_type', 'rank_pattern', 'alpha_pattern',
+            'modules_to_save', 'init_lora_weights', 'fan_in_fan_out', 'layers_pattern',
+            'layers_to_transform', 'target_parameters', 'megatron_config', 'megatron_core',
+            'layer_replication', 'base_model_name_or_path', 'auto_mapping', 'revision',
+            'use_dora', 'loftq_config', 'use_qalora', 'qalora_group_size', 'exclude_modules'
+        }
+
+    # Drop unknown keys (e.g., 'corda_config', 'eva_config')
+    sanitized = {k: v for k, v in cfg.items() if k in allowed}
+    if sanitized == cfg:
+        return src_dir  # nothing to change
+
+    # Make a deterministic cache folder name based on src_dir path
+    h = hashlib.sha256(src_dir.encode('utf-8')).hexdigest()[:16]
+    dst_dir = os.path.join(PROJECT_ROOT, '.cache_sanitized_adapters', h)
+    os.makedirs(dst_dir, exist_ok=True)
+    # Copy all files from src except the config we'll overwrite
+    for name in os.listdir(src_dir):
+        src = os.path.join(src_dir, name)
+        dst = os.path.join(dst_dir, name)
+        if name == 'adapter_config.json':
+            continue
+        if os.path.isdir(src):
+            # shallow copy of subfolders if any (shouldn't be necessary for PEFT)
+            if not os.path.exists(dst):
+                shutil.copytree(src, dst)
+        else:
+            shutil.copy2(src, dst)
+    # Write sanitized config
+    with open(os.path.join(dst_dir, 'adapter_config.json'), 'w', encoding='utf-8') as f:
+        json.dump(sanitized, f, ensure_ascii=False, indent=2)
+    return dst_dir
 
 # Sidebar configs
 with st.sidebar:
@@ -139,6 +203,13 @@ def load_model(model_mode: str, base_model_name: str, merged_model_path: str, ad
         if not os.path.isdir(merged_model_path):
             st.error(f"Diretório de modelo mesclado não encontrado: {merged_model_path}")
             st.stop()
+        if not _looks_like_merged_model(merged_model_path):
+            st.error(
+                "O diretório selecionado não contém pesos do modelo (model.safetensors ou pytorch_model.bin).\n"
+                "Reabra o notebook e execute a etapa de MERGE & SAVE (salvando o modelo completo) para gerar os pesos.\n"
+                "Dica: no Colab, recarregue o modelo base em FP16, aplique o adapter e chame merge_and_unload/save_pretrained."
+            )
+            st.stop()
         if FastLanguageModel is not None:
             return _unsloth_load(merged_model_path)
         else:
@@ -157,11 +228,25 @@ def load_model(model_mode: str, base_model_name: str, merged_model_path: str, ad
     else:
         st.warning("Unsloth não encontrado; usando Transformers padrão (pode ser mais lento).")
         base_model, tokenizer = _hf_load(base_model_name)
+    # Try raw adapter first; if it fails due to extra config keys, sanitize and retry
     try:
         model = PeftModel.from_pretrained(base_model, adapter_path)
     except Exception as e:
-        st.error(f"Failed to load adapter: {e}")
-        st.stop()
+        # Try sanitization when error mentions unexpected keyword arg
+        if 'unexpected keyword argument' in str(e) or 'got an unexpected keyword' in str(e):
+            sanitized_dir = _sanitize_adapter_dir(adapter_path)
+            try:
+                model = PeftModel.from_pretrained(base_model, sanitized_dir)
+            except Exception as e2:
+                st.error(
+                    "Failed to load adapter even after sanitizing adapter_config.json.\n"
+                    f"Original error: {e}\nRetry error: {e2}\n"
+                    "Solução: atualize o pacote 'peft' (>=0.11) ou use o modo 'Fine-tuned (merged)'."
+                )
+                st.stop()
+        else:
+            st.error(f"Failed to load adapter: {e}")
+            st.stop()
     return model, tokenizer
 
 @torch.no_grad()
