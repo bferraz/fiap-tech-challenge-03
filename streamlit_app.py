@@ -38,7 +38,11 @@ def _looks_like_merged_model(dir_path: str) -> bool:
         return False
     files = set(os.listdir(dir_path))
     has_config = 'config.json' in files
-    has_weights = any(f in files for f in ['model.safetensors', 'pytorch_model.bin'])
+    # Aceitar pesos shardeados: *.safetensors ou pytorch_model*.bin
+    has_weights = any(
+        f.endswith('.safetensors') or (f.startswith('pytorch_model') and f.endswith('.bin'))
+        for f in files
+    )
     return has_config and has_weights
 
 def _looks_like_adapter(dir_path: str) -> bool:
@@ -205,9 +209,10 @@ def load_model(model_mode: str, base_model_name: str, merged_model_path: str, ad
             st.stop()
         if not _looks_like_merged_model(merged_model_path):
             st.error(
-                "O diretório selecionado não contém pesos do modelo (model.safetensors ou pytorch_model.bin).\n"
-                "Reabra o notebook e execute a etapa de MERGE & SAVE (salvando o modelo completo) para gerar os pesos.\n"
-                "Dica: no Colab, recarregue o modelo base em FP16, aplique o adapter e chame merge_and_unload/save_pretrained."
+                "O diretório selecionado não contém pesos do modelo.\n"
+                "Certifique-se de que os arquivos de pesos (*.safetensors ou pytorch_model*.bin) estão DENTRO desta pasta, junto com o config.json.\n"
+                "Observação: você colocou 'model.safetensors' na raiz do projeto — mova-o para a pasta do modelo mesclado (ex.: tinyllama_amazon_final).\n"
+                "Alternativa: reabra o notebook e execute a etapa de MERGE & SAVE para salvar tudo na mesma pasta."
             )
             st.stop()
         if FastLanguageModel is not None:

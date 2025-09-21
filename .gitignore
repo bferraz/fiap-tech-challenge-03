@@ -6,5 +6,7 @@ Tech_Challenge.md
 
 tinyllama_amazon_final/
 tinyllama_amazon_finetuned/
+.cache_sanitized_adapters/
 
 .env
+train_dataset_used.jsonl
