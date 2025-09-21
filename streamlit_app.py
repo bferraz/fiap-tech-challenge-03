@@ -236,12 +236,25 @@ def load_model(model_mode: str, base_model_name: str, merged_model_path: str, ad
     # Try raw adapter first; if it fails due to extra config keys, sanitize and retry
     try:
         model = PeftModel.from_pretrained(base_model, adapter_path)
+        st.info(f"✓ Adapter carregado de: {adapter_path}")
+        # Verificar se adapter foi aplicado
+        if hasattr(model, 'peft_config'):
+            st.info(f"✓ PEFT config detectado: {list(model.peft_config.keys())}")
+        if hasattr(model, 'active_adapters'):
+            st.info(f"✓ Adapters ativos: {model.active_adapters}")
     except Exception as e:
         # Try sanitization when error mentions unexpected keyword arg
         if 'unexpected keyword argument' in str(e) or 'got an unexpected keyword' in str(e):
             sanitized_dir = _sanitize_adapter_dir(adapter_path)
+            st.warning(f"Sanitizando adapter de {adapter_path} para {sanitized_dir}")
             try:
                 model = PeftModel.from_pretrained(base_model, sanitized_dir)
+                st.info(f"✓ Adapter carregado após sanitização de: {sanitized_dir}")
+                # Verificar se adapter foi aplicado
+                if hasattr(model, 'peft_config'):
+                    st.info(f"✓ PEFT config detectado: {list(model.peft_config.keys())}")
+                if hasattr(model, 'active_adapters'):
+                    st.info(f"✓ Adapters ativos: {model.active_adapters}")
             except Exception as e2:
                 st.error(
                     "Failed to load adapter even after sanitizing adapter_config.json.\n"
@@ -262,6 +275,23 @@ def generate(model, tokenizer, title: str, system_prompt: str, max_new_tokens: i
     device = next(model.parameters()).device
     inputs = {k: v.to(device) for k, v in inputs.items()}
     input_len = (inputs['input_ids'] != (tokenizer.pad_token_id if tokenizer.pad_token_id is not None else tokenizer.eos_token_id)).sum(dim=1)[0]
+    
+    # Debug: mostrar informações do modelo
+    model_info = []
+    if hasattr(model, 'peft_config'):
+        model_info.append(f"🔧 PEFT ativo com {len(model.peft_config)} adapter(s)")
+    else:
+        model_info.append("📦 Modelo base (sem PEFT)")
+    
+    # Verificar se está em modo eval
+    if model.training:
+        model.eval()
+        model_info.append("⚠️ Modelo colocado em modo eval")
+    else:
+        model_info.append("✓ Modelo em modo eval")
+    
+    st.info(" | ".join(model_info))
+    
     outputs = model.generate(
         **inputs,
         max_new_tokens=max_new_tokens,
