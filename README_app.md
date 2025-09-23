@@ -1,6 +1,6 @@
 # Demo de Comparação (Streamlit)
 
-Este app permite comparar o modelo base (TinyLlama) com o modelo fine-tunado (mesclado) ou via adapter (LoRA), gerando descrições a partir de títulos no mesmo formato de prompt usado no treinamento. 
+Este app permite comparar o modelo base (TinyLlama) com o modelo fine-tunado (mesclado) ou via adapter (LoRA), gerando descrições a partir de títulos no mesmo formato de prompt usado no treinamento.
 
 ## Requisitos
 - Python 3.10+
