@@ -15,7 +15,7 @@ Este projeto implementou com sucesso o fine-tuning do modelo **TinyLlama-1.1B-Ch
 - Implementar fine-tuning de um Large Language Model (LLM) para geração de descrições de produtos
 
 ### Objetivos Específicos
-- ✅ Processar mínimo de 100.000 registros (conforme solicitação do professor)
+- ✅ Processar mínimo de 100.000 registros
 - ✅ Comparar performance do modelo base vs fine-tuned
 - ✅ Implementar interface interativa para demonstração
 - ✅ Otimizar tempo de treinamento para ambiente Colab
