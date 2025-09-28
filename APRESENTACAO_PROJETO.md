@@ -200,30 +200,6 @@ Durante a análise, identificamos que o dataset contém principalmente **resenha
 
 ---
 
-## 🎓 **Considerações Acadêmicas**
-
-### Aprendizados Técnicos
-1. **LoRA é extremamente eficaz** para fine-tuning com recursos limitados
-2. **Qualidade dos dados > Quantidade** para resultados efetivos
-3. **Debugging sistemático** é crucial para projetos de ML
-4. **Otimização iterativa** permite balancear requisitos conflitantes
-
-### Aplicação Prática
-Este projeto demonstra competência em:
-- **Engenharia de Prompt** para estruturação de dados
-- **Otimização de Hiperparâmetros** para recursos limitados
-- **Debugging de Modelos** em ambiente produtivo
-- **Análise Crítica** de resultados de ML
-
-### Relevância Profissional
-As técnicas implementadas são diretamente aplicáveis em:
-- Personalização de chatbots corporativos
-- Geração automática de conteúdo marketing
-- Adaptação de modelos para domínios específicos
-- Otimização de custos em projetos de ML
-
----
-
 ## 📁 **Estrutura do Projeto**
 
 ```
@@ -231,9 +207,6 @@ fiap-tech-challenge-03/
 ├── colab_unsloth_tinyllama.ipynb    # Pipeline principal de treinamento
 ├── streamlit_app.py                 # Interface de demonstração
 ├── requirements.txt                 # Dependências do projeto
-├── train_dataset_used.jsonl         # Dataset final utilizado
-├── tinyllama_amazon_finetuned/      # Modelo fine-tuned (adapter)
-├── tinyllama_amazon_final/          # Modelo merged (opcional)
 └── APRESENTACAO_PROJETO.md          # Este documento
 ```
 
@@ -253,6 +226,6 @@ O projeto está **pronto para produção** e serve como base sólida para futura
 
 ---
 
-*Documento preparado por: [Seu Nome]*  
+*Documento preparado por: Bruno Rafael Ferraz da Silva*  
 *Data: 23 de Setembro de 2025*  
 *Projeto: Tech Challenge Módulo 3 - FIAP*
