@@ -10,3 +10,4 @@ tinyllama_amazon_finetuned/
 
 .env
 train_dataset_used.jsonl
+finetuning_summarizer.ipynb

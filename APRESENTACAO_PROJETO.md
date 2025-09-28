@@ -84,15 +84,11 @@ EPOCHS = 2                    # Otimizado para tempo/qualidade
 - **Solução Final:** 150k lidos + 15k treinados = 85% redução de tempo
 
 ### 3. **Requisito Acadêmico vs Eficiência**
-**Desafio:** Professor exigiu mínimo 100k registros vs limitações de crédito Colab
+**Desafio:** Mínimo 100k registros vs limitações de crédito Colab
 **Solução Inteligente:** 
 - Ler 150.000 registros (✅ atende requisito)
 - Selecionar 15.000 aleatoriamente para treino (⚡ eficiência)
 - Manter diversidade máxima com tempo otimizado
-
-### 4. **Caracteres Corrompidos**
-**Sintoma:** Emojis `�` causavam travamento na execução
-**Solução:** Identificação e correção sistemática de encoding UTF-8
 
 ---
 
